@@ -634,13 +634,13 @@
   const roadK = (w) => (roadC(w + 1) - 2 * roadC(w) + roadC(w - 1));      // courbure (dérivée seconde)
   const roadB = (w, s) => .009 * Math.sin(w * 1.31 + s * 1.7) * Math.sin(w * .173 + s) + .0045 * Math.sin(w * 3.7 + s * 2.1) + .003 * Math.sin(w * 7.9 + s);  // bosses
   function World(gl, prog, U, mk) {
-    const PART = prog(PART_VS, PART_FS); const pq = []; const quadC = [[-1, -1], [1, -1], [1, 1], [-1, -1], [1, 1], [-1, 1]];
+    let PART, SHP, TER, OBJ, SKY, BEAM;                 // programmes du roulage : compilés seulement au premier roulage
+    const progs = () => { if (TER) return; PART = prog(PART_VS, PART_FS); SHP = prog(SH_VS, SH_FS); TER = prog(TER_VS, TER_FS); OBJ = prog(OBJ_VS, OBJ_FS); SKY = prog(BG_VS, SKY_FS); BEAM = prog(BEAM_VS, BEAM_FS); };
+    const pq = []; const quadC = [[-1, -1], [1, -1], [1, 1], [-1, -1], [1, 1], [-1, 1]];
     for (let k = 0; k < 2; k++) quadC.forEach(([x, y]) => pq.push(k, 2, x, y));
     for (let i = 0; i < 320; i++) { const s = 1 + i / 320; quadC.forEach(([x, y]) => pq.push(s, 1, x, y)); }   // flocons supplémentaires (hiver)
     for (let i = 0; i < 260; i++) { const leaf = i >= 70 ? 1 : 0; const sd = leaf ? (i - 70) / 190 + .0007 : (i % 2 ? .75 : .25) + (i / 70) * .2 - .1 + (i % 2 ? 0 : 0); const s = leaf ? sd : (i % 2 ? .5 + (i / 140) : (i / 140)); quadC.forEach(([x, y]) => pq.push(s, leaf, x, y)); }
     const pb = mk(gl.ARRAY_BUFFER, new Float32Array(pq)), pn = pq.length / 4;
-    const SHP = prog(SH_VS, SH_FS);
-    const TER = prog(TER_VS, TER_FS), OBJ = prog(OBJ_VS, OBJ_FS), SKY = prog(BG_VS, SKY_FS), BEAM = prog(BEAM_VS, BEAM_FS);
     // grille du terrain : dense près de la route, lâche au loin ; pas constant en z pour défiler sans « nager »
     const offs = [0, 1.5, 3.05, 3.6, 4.2, 4.6, 5.0, 5.6, 6.4, 7.5, 9, 11, 14, 18, 23, 29, 36, 45, 56, 70, 86, 105, 128, 155, 186, 222, 264, 312, 370];
     const xs = []; offs.slice().reverse().forEach((o) => xs.push(-1.5 - o)); offs.forEach((o, i) => { if (i) xs.push(-1.5 + o); });
@@ -668,13 +668,13 @@
       SUN, ensure(m) { getSet(m); },
       carEnv(p, S) { const w = seasonW(S.season || 0); const lk = look(S.scene, w); gl.uniform4fv(U(p, 'uSw'), w); gl.uniform3fv(U(p, 'uFog'), lk.fog); gl.uniform1f(U(p, 'uD'), S.D);
         gl.uniform3fv(U(p, 'uTop'), [0, 1, 2].map((j) => [[.42, .48, .56], [.12, .36, .82], [.34, .44, .66], [.60, .65, .72]].reduce((a, c, k) => a + c[j] * w[k], 0))); return w; },
-      sky(S, eye, time, basis, aspect) {
+      sky(S, eye, time, basis, aspect) { progs();
         gl.useProgram(SKY); common(SKY, S, eye, time);
         const a = gl.getAttribLocation(SKY, 'p'); gl.bindBuffer(gl.ARRAY_BUFFER, basis.bq); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
         gl.uniform3fv(U(SKY, 'cf'), basis.f); gl.uniform3fv(U(SKY, 'cr'), basis.r); gl.uniform3fv(U(SKY, 'cu'), basis.u); gl.uniform1f(U(SKY, 'th'), basis.th); gl.uniform1f(U(SKY, 'aspect'), aspect);
         gl.drawArrays(gl.TRIANGLES, 0, 3); dis();
       },
-      ground(S, VP, eye, time) {
+      ground(S, VP, eye, time) { progs();
         gl.useProgram(TER); common(TER, S, eye, time); gl.uniformMatrix4fv(U(TER, 'VP'), false, VP); gl.uniform1f(U(TER, 'cell'), CELL);
         const a = gl.getAttribLocation(TER, 'g'); gl.bindBuffer(gl.ARRAY_BUFFER, tb); gl.enableVertexAttribArray(a); gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
         gl.uniform1f(U(TER, 'rfl'), S.scene === 2 ? .10 : .11);
@@ -697,13 +697,13 @@
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, st.ib); gl.drawElements(gl.TRIANGLES, st.n, gl.UNSIGNED_INT, 0);
         dis();
       },
-      particles(S, VP, eye, time, basis) {
+      particles(S, VP, eye, time, basis) { progs();
         gl.useProgram(PART); common(PART, S, eye, time); gl.uniformMatrix4fv(U(PART, 'VP'), false, VP); gl.uniform3fv(U(PART, 'camR'), basis.r); gl.uniform3fv(U(PART, 'camU'), basis.u); gl.uniform1f(U(PART, 'spd'), S.speed); gl.uniform3fv(U(PART, 'eyeP'), S.eyeP || [0, 0, 0]); gl.uniform1f(U(PART, 'eyeOn'), S.eyeOn || 0); gl.uniform1f(U(PART, 'eyeOpen'), S.eyeOpen == null ? 1 : S.eyeOpen);
         const l = gl.getAttribLocation(PART, 'q'); gl.bindBuffer(gl.ARRAY_BUFFER, pb); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, 4, gl.FLOAT, false, 0, 0);
         gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
         gl.drawArrays(gl.TRIANGLES, 0, pn); gl.depthMask(true); gl.disable(gl.BLEND); dis();
       },
-      beams(S, VP, eye, time) {
+      beams(S, VP, eye, time) { progs();
         if (true) return;
         gl.useProgram(BEAM); gl.uniformMatrix4fv(U(BEAM, 'VP'), false, VP); gl.uniform3fv(U(BEAM, 'eye'), eye); gl.uniform1f(U(BEAM, 'time'), time); gl.uniform1f(U(BEAM, 'hlI'), Math.min(1, S.lights)); gl.uniform1f(U(BEAM, 'lift'), S.ride + .03);
         [['p', bb.p, 3], ['n', bb.n, 3], ['t', bb.t, 1]].forEach(([nm, b, sz]) => { const l = gl.getAttribLocation(BEAM, nm); if (l < 0) return; gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, sz, gl.FLOAT, false, 0, 0); });
@@ -1347,10 +1347,34 @@
     resize();
     return api;
   }
+  // décodeur du format 7 (sans perte) : triangles codés par arête partagée, positions et normales prédites par parallélogramme
+  function dec7(u8, nv, ni) {
+    let p = 12; const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength); const ib = dv.getUint32(0, true), xb = dv.getUint32(4, true), pb = dv.getUint32(8, true);
+    const X = 12 + ib; let px = X;                                       // flux des codes explicites (varint)
+    const rv = () => { let v = 0, s = 0, b; do { b = u8[px++]; v |= (b & 127) << s; s += 7; } while (b & 128); return v; };
+    const idx = new Uint32Array(ni), pa = new Int32Array(nv).fill(-1), pbv = new Int32Array(nv), pd = new Int32Array(nv);
+    const EA = new Int32Array(16), EB = new Int32Array(16), ED = new Int32Array(16), VF = new Int32Array(16); let ew = 0, vw = 0, next = 0;
+    const vget = (code, a, b, d) => { if (code === 0) { const v = next++; pa[v] = a; pbv[v] = b; pd[v] = d; VF[vw & 15] = v; vw++; return v; }
+      if (code < 15) return VF[(vw - code) & 15]; const v = next - rv(); VF[vw & 15] = v; vw++; return v; };
+    for (let t = 0; t < ni; t += 3) {
+      const byte = u8[p++]; const fe = byte >> 4; let a, b, c;
+      if (fe < 15) { const k = (ew - 1 - fe) & 15; a = EB[k]; b = EA[k]; c = vget(byte & 15, a, b, ED[k]); }
+      else { const c0 = u8[p++], c1 = u8[p++], c2 = u8[p++]; a = vget(c0, -1, 0, 0); b = vget(c1, -1, 0, 0); c = vget(c2, -1, 0, 0); }
+      idx[t] = a; idx[t + 1] = b; idx[t + 2] = c;
+      EA[ew & 15] = a; EB[ew & 15] = b; ED[ew & 15] = c; ew++; EA[ew & 15] = b; EB[ew & 15] = c; ED[ew & 15] = a; ew++; EA[ew & 15] = c; EB[ew & 15] = a; ED[ew & 15] = b; ew++;
+    }
+    px = 12 + ib + xb; const pos = new Uint16Array(nv * 3);
+    const rz = () => { const v = rv(); return v % 2 ? -(v + 1) / 2 : v / 2; };
+    for (let v = 0; v < nv; v++) for (let j = 0; j < 3; j++) { const pr = pa[v] >= 0 ? pos[pa[v] * 3 + j] + pos[pbv[v] * 3 + j] - pos[pd[v] * 3 + j] : (v ? pos[(v - 1) * 3 + j] : 0); pos[v * 3 + j] = pr + rz(); }
+    const nrm = new Int8Array(nv * 3); let q = 12 + ib + xb + pb;
+    for (let v = 0; v < nv; v++) for (let j = 0; j < 3; j++) { const pr = pa[v] >= 0 ? (nrm[pa[v] * 3 + j] + nrm[pbv[v] * 3 + j]) >> 1 : (v ? nrm[(v - 1) * 3 + j] : 0); nrm[v * 3 + j] = ((pr + u8[q++]) << 24) >> 24; }
+    return { pos, nrm, idx };
+  }
   Swift3D.decode = async function (meta) {
     const bin = b64(meta.z);
     const buf = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
     const nv = meta.nv, ni = meta.ni;
+    if (meta.v === 7) { const r = dec7(new Uint8Array(buf), nv, ni); meta._pos = r.pos; meta._nrm = r.nrm; meta._idx = r.idx; delete meta.z; return meta; }   // format compact (2× plus léger)
     const pos = new Uint16Array(buf.slice(0, nv * 6));
     const nrm = new Int8Array(buf.slice(nv * 6, nv * 9));
     const zz = new Uint32Array(buf.slice(nv * 9, nv * 9 + ni * 4));

@@ -1626,7 +1626,7 @@ class Component extends DCLogic {
   }
   componentDidMount() {
     setTimeout(() => { try { this.c3dEnsure(); } catch (e) {} try { this.fxEnsure(); } catch (e) {} }, 0);
-    try {
+    this.voiceLoad = () => { if (this._voiceAsked) return; this._voiceAsked = true; try {          // voix : chargées seulement quand on en a besoin, pas au démarrage
       fetch('assets/b02542eb182e0d24577c0319a7de0bd5.json').then((r) => r.json()).then((d) => {
         const urls = [];
         for (let k = 1; k <= 10; k++) {
@@ -1639,8 +1639,9 @@ class Component extends DCLogic {
         }
         this.voiceUrls = urls;
         this.setState({ voiceInfo: 'Voix enregistrées par une doubleuse japonaise · 10 messages' });
-      }).catch(() => {});
-    } catch (e) {}
+      }).catch(() => { this._voiceAsked = false; });
+    } catch (e) {} };
+    if (this.state.product === 'sp') this.voiceLoad(); else setTimeout(() => this.voiceLoad(), 12000);
     setTimeout(() => this.scanReveal(), 50);
     this.simT = 0;
     this.iv = setInterval(() => {
@@ -1739,10 +1740,10 @@ class Component extends DCLogic {
     if (this._c3dP) return this._c3dP;
     const script = new Promise((res, rej) => {
       if (window.Swift3D) return res();
-      const el = document.createElement('script'); el.src = 'assets/8fca48a470a1baafa0ad0a7f8ffa5f03.js'; el.onload = () => res(); el.onerror = rej; document.head.appendChild(el);
+      const el = document.createElement('script'); el.src = 'assets/ba896338f49c93e5daf6bda71c2ef94a.js'; el.onload = () => res(); el.onerror = rej; document.head.appendChild(el);
     });
-    const data = fetch('assets/c565171e3a54a3e07f3cb07cf9040883.json').then(async (r) => {
-      const total = +(r.headers.get('content-length') || 5098887);
+    const data = fetch('assets/e5eec3ae79ad237ae08c1c7b10375c7d.json').then(async (r) => {
+      const total = +(r.headers.get('content-length') || 2774285);
       if (!r.body || !r.body.getReader) return r.text();
       const rd = r.body.getReader(); const parts = []; let got = 0, lastPct = -1;
       for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; const pct = Math.min(99, Math.round(got / total * 100)); if (pct >= lastPct + 4) { lastPct = pct; this.setState({ c3dPct: pct }); } }
@@ -2236,6 +2237,7 @@ class Component extends DCLogic {
   switchTo(p, col) {
     const s = this.state;
     if (s.pt) return;
+    if (p === 'sp' && this.voiceLoad) this.voiceLoad();
     if (s.product === p) { if (s.gMenu) this.setState({ gMenu: false }); return; }
     let reduce = false;
     try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
