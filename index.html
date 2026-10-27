@@ -1739,7 +1739,7 @@ class Component extends DCLogic {
     if (this._c3dP) return this._c3dP;
     const script = new Promise((res, rej) => {
       if (window.Swift3D) return res();
-      const el = document.createElement('script'); el.src = 'assets/d0c35df2e0a16540558cd261123d7bf1.js'; el.onload = () => res(); el.onerror = rej; document.head.appendChild(el);
+      const el = document.createElement('script'); el.src = 'assets/8fca48a470a1baafa0ad0a7f8ffa5f03.js'; el.onload = () => res(); el.onerror = rej; document.head.appendChild(el);
     });
     const data = fetch('assets/c565171e3a54a3e07f3cb07cf9040883.json').then(async (r) => {
       const total = +(r.headers.get('content-length') || 5098887);
