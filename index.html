@@ -1735,20 +1735,22 @@ class Component extends DCLogic {
     let ok = false; try { ok = !!(window.WebGLRenderingContext && document.createElement('canvas').getContext('webgl') && 'DecompressionStream' in window); } catch (e) {}
     if (!ok) { this.setState({ c3dFail: true }); return; }
     this.c3dLoad().then((data) => { if (cv !== this.c3dCanvas) return; this.c3dInit(cv, data); }).catch(() => this.setState({ c3dFail: true }));
+    if (this._c3dScript) this._c3dScript.then(() => { try { if (cv === this.c3dCanvas && window.Swift3D && window.Swift3D.prewarm) window.Swift3D.prewarm(cv); } catch (e) {} });   // shaders compilés pendant le téléchargement
   }
   c3dLoad() {
     if (this._c3dP) return this._c3dP;
     const script = new Promise((res, rej) => {
       if (window.Swift3D) return res();
-      const el = document.createElement('script'); el.src = 'assets/ba896338f49c93e5daf6bda71c2ef94a.js'; el.onload = () => res(); el.onerror = rej; document.head.appendChild(el);
+      const el = document.createElement('script'); el.src = 'assets/f42e3e2dc2eb713fd39f0bcfab3e6a0e.js'; el.onload = () => res(); el.onerror = rej; document.head.appendChild(el);
     });
-    const data = fetch('assets/e5eec3ae79ad237ae08c1c7b10375c7d.json').then(async (r) => {
-      const total = +(r.headers.get('content-length') || 2774285);
+    const data = fetch('assets/d27ad69a53121c24a298b224f700a660.json').then(async (r) => {
+      const total = +(r.headers.get('content-length') || 3016413);
       if (!r.body || !r.body.getReader) return r.text();
       const rd = r.body.getReader(); const parts = []; let got = 0, lastPct = -1;
       for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; const pct = Math.min(99, Math.round(got / total * 100)); if (pct >= lastPct + 4) { lastPct = pct; this.setState({ c3dPct: pct }); } }
       return new TextDecoder().decode(await new Blob(parts).arrayBuffer());
     }).then((txt) => JSON.parse(txt));
+    this._c3dScript = script;
     this._c3dP = Promise.all([script, data]).then(([, d]) => window.Swift3D.decode(d));
     this._c3dP.catch(() => { this._c3dP = null; });
     return this._c3dP;
